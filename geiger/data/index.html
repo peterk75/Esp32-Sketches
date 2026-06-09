@@ -1,0 +1,166 @@
+<!DOCTYPE HTML><html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <style>
+    body {
+      min-width: 310px;
+    	max-width: 800px;
+    	height: 400px;
+      margin: 0 auto;
+    }
+    h2 {
+      font-family: Arial;
+      font-size: 2.5rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>Geiger Counter</h2>
+  <div id="chart-ticks" class="container"></div>
+  <div id="chart-dose" class="container"></div>
+</body>
+<script>
+var chartT = new Highcharts.Chart({
+  chart:{ renderTo : 'chart-ticks', animation: false },	
+  title: { text: 'Ticks' },
+  series: [{
+    showInLegend: false,
+    data: []
+  }],
+  plotOptions: {
+    line: { animation: false,
+      dataLabels: { enabled: true }
+    },
+    series: { color: '#059e8a' }
+  },
+  xAxis: { type: 'datetime',
+    dateTimeLabelFormats: { second: '%H:%M:%S' }
+  },
+  yAxis: {
+    title: { text: 'Becquerel' }
+  },
+  credits: { enabled: false }
+});
+var chartD = new Highcharts.Chart({
+  chart:{ 
+        type: 'gauge',
+        plotBackgroundColor: null,
+        plotBackgroundImage: null,
+        plotBorderWidth: 0,
+        plotShadow: false,
+        height: '80%',
+	renderTo : 'chart-dose', animation: false },	
+  title: { text: 'Dose Cesium-137' },
+   pane: {
+        startAngle: -90,
+        endAngle: 89.9,
+        background: null,
+        center: ['50%', '75%'],
+        size: '110%'
+    },
+  series: [{
+    name: 'Dose',
+    data: [80],
+    tooltip: {
+            valueSuffix: ' mSv'
+        },
+   dataLabels: {
+            format: '{y} mSv',
+            borderWidth: 0,
+            color: (
+                Highcharts.defaultOptions.title &&
+                Highcharts.defaultOptions.title.style &&
+                Highcharts.defaultOptions.title.style.color
+            ) || '#333333',
+            style: {
+                fontSize: '16px'
+            }
+        },
+    dial: {
+            radius: '80%',
+            backgroundColor: 'gray',
+            baseWidth: 12,
+            baseLength: '0%',
+            rearLength: '0%'
+        },
+        pivot: {
+            backgroundColor: 'gray',
+            radius: 6
+        }
+  }],
+  // the value axis
+    yAxis: {
+        min: 0,
+        max: 200,
+        tickPixelInterval: 72,
+        tickPosition: 'inside',
+        tickColor: 'var(--highcharts-background-color, #FFFFFF)',
+        tickLength: 20,
+        tickWidth: 2,
+        minorTickInterval: null,
+        labels: {
+            distance: 20,
+            style: {
+                fontSize: '14px'
+            }
+        },
+        lineWidth: 0,
+        plotBands: [{
+            from: 0,
+	    to: 120,
+            color: '#55BF3B', // green
+            thickness: 20,
+            borderRadius: '50%'
+        }, {
+            from: 120,
+            to: 160,
+            color: '#DDDF0D', // yellow
+            thickness: 20,
+            borderRadius: '50%'
+        }, {
+            from: 160,
+            to: 200,
+            color: '#DF5353', // red
+            thickness: 20,
+            borderRadius: '50%'
+        }]
+    },
+  credits: { enabled: false }
+});
+if (!!window.EventSource) {
+  var source = new EventSource('/events');
+
+  source.addEventListener('open', function(e) {
+    console.log("Events Connected");
+  }, false);
+
+  source.addEventListener('error', function(e) {
+    if (e.target.readyState != EventSource.OPEN) {
+      console.log("Events Disconnected");
+    }
+  }, false);
+
+  source.addEventListener('message', function(e) {
+    console.log("message", e.data);
+  }, false);
+
+  source.addEventListener('ticks', function(e) {
+        const point = JSON.parse(e.data);
+	if(chartT.series[0].data.length > 40) {
+        chartT.series[0].addPoint([point.timestamp, point.value], true, true, false);
+      	} else {
+        chartT.series[0].addPoint([point.timestamp, point.value], true, false, false);
+      	}
+    	console.log("ticks:", e.data);
+  }, false);
+  source.addEventListener('dose', function(e) {
+ 	const point = chartD.series[0].points[0];
+	point.update(Math.round(e.data));
+    	console.log("dose:", e.data);
+  }, false);
+}
+</script>
+</html>
